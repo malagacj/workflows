@@ -6,6 +6,13 @@ on:
       node-version:
         required: true
         type: string
+    secrets:
+      ID_RSA_GITHUB_MALAGACJ:
+        required: true
+      SERVER_NAME:
+        required: true
+      SERVER_USER:
+        required: true
 
 jobs:
   remote-ssh:
