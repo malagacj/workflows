@@ -1,0 +1,57 @@
+name: Copies files to remote server
+
+on:
+  workflow_call:
+    inputs:
+      COMMAND:
+        required: true
+        type: string
+      DEPLOYMENT_DIR:
+        required: true
+        type: string
+    secrets:
+      ID_RSA_GITHUB_MALAGACJ:
+        required: true
+      SERVER_NAME:
+        required: true
+      SERVER_USER:
+        required: true
+
+jobs:
+  deploy-docker-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine remote command
+        id: set_cmd
+        run: |
+          CMD="cd $DEPLOYMENT_DIR"
+          case "${{ env.COMMAND }}" in
+            deploy)
+              CMD="$CMD && docker compose up -d"
+              ;;
+            stop)
+              CMD="$CMD && docker compose down"
+              ;;
+            stop_and_deploy)
+              CMD="$CMD && docker compose down && docker compose up -d"
+              ;;
+            purge)
+              CMD="$CMD && docker compose down -v --rmi all"
+              ;;
+            purge_and_deploy)
+              CMD="$CMD && docker compose down -v --rmi all && docker compose up -d"
+              ;;
+            *)
+              echo "Unknown command"
+              exit 1
+              ;;
+          esac
+          echo "cmd=echo \"Running action: ${{ env.COMMAND }}\" && $CMD" >> "$GITHUB_OUTPUT"
+
+      - name: Run remote command via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_NAME }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.ID_RSA_GITHUB_MALAGACJ }}
+          script: ${{ steps.set_cmd.outputs.cmd }}

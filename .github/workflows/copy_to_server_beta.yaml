@@ -1,9 +1,12 @@
-name: Copy files to remote server
+name: Copies files to remote server
 
 on:
   workflow_call:
     inputs:
-      node-version:
+      SOURCE_FILES:
+        required: true
+        type: string
+      DEPLOYMENT_DIR:
         required: true
         type: string
     secrets:
@@ -15,7 +18,7 @@ on:
         required: true
 
 jobs:
-  remote-ssh:
+  copy-artifact:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,13 +28,19 @@ jobs:
           ref: ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.ID_RSA_GITHUB_MALAGACJ }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.SERVER_NAME }}" >> ~/.ssh/known_hosts
+      - name: Create deployment folder
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_NAME }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.ID_RSA_GITHUB_MALAGACJ }}
+          script: mkdir -p "${{ env.DEPLOYMENT_DIR }}"
 
-      - name: Copy artifact to remote server
-        run: |
-          scp docker-compose.yaml "${{ secrets.SERVER_USER }}"@"${{ secrets.SERVER_NAME }}":
+      - name: Copy artifact files
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SERVER_NAME }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.ID_RSA_GITHUB_MALAGACJ }}
+          source: "${{ env.SOURCE_FILES }}"
+          target: "${{ env.DEPLOYMENT_DIR }}"
